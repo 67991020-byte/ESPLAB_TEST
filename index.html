@@ -1,93 +1,337 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Smart Sensor Hub</title>
-    <meta name="description" content="Real-time ESP32 sensor dashboard for touch, temperature, and humidity monitoring.">
+    <title>ESP32 Real-time Dashboard</title>
+    <link rel="stylesheet" href="index.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .table-container {
+            margin-top: 2rem;
+            overflow-x: auto;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            animation: fadeInUp 0.8s ease-out 0.6s both;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: var(--text);
+        }
+
+        th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-on {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .status-off {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent);
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 1.5rem;
+            animation: fadeInUp 0.8s ease-out both;
+            min-height: 350px;
+            /* เพิ่มความสูงขั้นต่ำให้กราฟ */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-wrapper {
+            flex-grow: 1;
+            position: relative;
+            height: 300px;
+            /* ล็อคความสูงของพื้นที่กราฟ */
+        }
+
+        .chart-header-small {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 1rem;
+        }
+    </style>
 </head>
+
 <body>
     <div class="container">
         <header>
-            <h1>ESP32 Sensor Hub</h1>
+            <h1>Environment Monitor</h1>
             <div class="status-indicator">
-                <div class="dot" id="status-dot"></div>
-                <span id="status-text">Connected</span>
+                <div class="dot" id="connection-dot"></div>
+                <span id="connection-status">Live System</span>
             </div>
         </header>
 
-        <main class="grid">
-            <!-- Temperature Card -->
-            <div class="card" style="animation-delay: 0.1s;">
+        <div class="grid">
+            <div class="card">
                 <div class="card-header">
                     <span class="card-title">Temperature</span>
-                    <div class="card-icon">
-                        <i data-lucide="thermometer"></i>
-                    </div>
+                    <div class="card-icon">🌡️</div>
                 </div>
                 <div class="card-value">
-                    <span id="temp-value">24.5</span>
+                    <span id="current-temp">--</span>
                     <span class="unit">°C</span>
                 </div>
                 <div class="progress-container">
-                    <div class="progress-bar" id="temp-progress" style="width: 49%;"></div>
+                    <div id="temp-progress" class="progress-bar" style="width: 0%"></div>
                 </div>
             </div>
 
-            <!-- Humidity Card -->
-            <div class="card" style="animation-delay: 0.2s;">
+            <div class="card">
                 <div class="card-header">
                     <span class="card-title">Humidity</span>
-                    <div class="card-icon" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;">
-                        <i data-lucide="droplets"></i>
-                    </div>
+                    <div class="card-icon">💧</div>
                 </div>
                 <div class="card-value">
-                    <span id="humidity-value">62</span>
+                    <span id="current-hum">--</span>
                     <span class="unit">%</span>
                 </div>
                 <div class="progress-container">
-                    <div class="progress-bar" id="humidity-progress" style="width: 62%; background: #0ea5e9;"></div>
+                    <div id="hum-progress" class="progress-bar" style="width: 0%"></div>
                 </div>
             </div>
 
-            <!-- Touch Sensor Card -->
-            <div class="card" style="animation-delay: 0.3s;">
+            <div class="card">
                 <div class="card-header">
-                    <span class="card-title">Touch Sensor</span>
-                    <div class="card-icon" style="background: rgba(244, 63, 94, 0.1); color: #f43f5e;">
-                        <i data-lucide="fingerprint"></i>
-                    </div>
+                    <span class="card-title">LED Status</span>
+                    <div class="card-icon">💡</div>
                 </div>
-                <div class="touch-indicator" id="touch-indicator">
-                    <i data-lucide="zap" id="touch-icon"></i>
+                <div class="touch-indicator" id="led-indicator">
+                    <span id="led-text" style="font-weight: 700;">OFF</span>
                 </div>
-                <p style="text-align: center; color: var(--text-muted); margin-top: 1rem;" id="touch-status">Not Touched</p>
             </div>
-        </main>
+        </div>
 
-        <!-- Chart Section -->
-        <section class="chart-container">
-            <div class="card-header">
-                <span class="card-title">Live Sensor Data</span>
-                <i data-lucide="trending-up" style="color: var(--text-muted);"></i>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-header-small">🌡️ Temperature History</div>
+                <div class="chart-wrapper">
+                    <canvas id="tempChart"></canvas>
+                </div>
             </div>
-            <canvas id="sensorChart" height="100"></canvas>
-        </section>
+            <div class="chart-card" style="animation-delay: 0.2s">
+                <div class="chart-header-small">💧 Humidity History</div>
+                <div class="chart-wrapper">
+                    <canvas id="humChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Temp (°C)</th>
+                        <th>Hum (%)</th>
+                        <th>Heat Index</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="data-table-body">
+                    <!-- Rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <script src="index.js"></script>
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
+        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxO_PqgKUPLAtNUTCB3PY8q02ZQottMQdk8UQn7c2zYnEbcDaVNwz0rOZIR0V4-xiQF9A/exec';
+
+        let tempChart, humChart;
+
+        function initCharts() {
+            const chartOptions = (label) => ({
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    }
+                }
+            });
+
+            const tempCtx = document.getElementById('tempChart').getContext('2d');
+            tempChart = new Chart(tempCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temp (°C)',
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        data: [],
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#6366f1'
+                    }]
+                },
+                options: chartOptions('Temperature')
+            });
+
+            const humCtx = document.getElementById('humChart').getContext('2d');
+            humChart = new Chart(humCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Hum (%)',
+                        borderColor: '#a855f7',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        data: [],
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2,
+                        pointBackgroundColor: '#a855f7'
+                    }]
+                },
+                options: chartOptions('Humidity')
+            });
+        }
+
+        async function fetchData() {
+            try {
+                const response = await fetch(SCRIPT_URL);
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    updateDashboard(data);
+                    updateTable(data);
+                    updateCharts(data);
+
+                    document.getElementById('connection-status').textContent = 'Live System';
+                    document.getElementById('connection-dot').style.backgroundColor = '#22c55e';
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('connection-status').textContent = 'Connection Error';
+                document.getElementById('connection-dot').style.backgroundColor = '#f43f5e';
+            }
+        }
+
+        function updateDashboard(data) {
+            const latest = data[data.length - 1];
+
+            // Update Temp
+            document.getElementById('current-temp').textContent = latest.temp;
+            document.getElementById('temp-progress').style.width = Math.min((latest.temp / 50) * 100, 100) + '%';
+
+            // Update Hum
+            document.getElementById('current-hum').textContent = latest.hum;
+            document.getElementById('hum-progress').style.width = latest.hum + '%';
+
+            // Update LED
+            const ledInd = document.getElementById('led-indicator');
+            const ledText = document.getElementById('led-text');
+            if (latest.status === 'ON') {
+                ledInd.classList.add('active');
+                ledText.textContent = 'ON';
+            } else {
+                ledInd.classList.remove('active');
+                ledText.textContent = 'OFF';
+            }
+        }
+
+        function updateTable(data) {
+            const tbody = document.getElementById('data-table-body');
+            tbody.innerHTML = '';
+
+            const displayData = [...data].reverse();
+            displayData.forEach(row => {
+                const date = new Date(row.time);
+                const timeStr = date.toLocaleTimeString();
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${timeStr}</td>
+                    <td>${row.temp}°C</td>
+                    <td>${row.hum}%</td>
+                    <td>${row.hi}</td>
+                    <td><span class="status-badge ${row.status === 'ON' ? 'status-on' : 'status-off'}">${row.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateCharts(data) {
+            const labels = data.map(row => {
+                const d = new Date(row.time);
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            });
+
+            tempChart.data.labels = labels;
+            tempChart.data.datasets[0].data = data.map(row => row.temp);
+            tempChart.update('none');
+
+            humChart.data.labels = labels;
+            humChart.data.datasets[0].data = data.map(row => row.hum);
+            humChart.update('none');
+        }
+
+        // Initialize
+        initCharts();
+        fetchData();
+        setInterval(fetchData, 5000);
     </script>
 </body>
+
 </html>
