@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Smart Sensor Hub</title>
+    <meta name="description" content="Real-time ESP32 sensor dashboard for touch, temperature, and humidity monitoring.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ESP32 Sensor Hub</h1>
+            <div class="status-indicator">
+                <div class="dot" id="status-dot"></div>
+                <span id="status-text">Connected</span>
+            </div>
+        </header>
+
+        <main class="grid">
+            <!-- Temperature Card -->
+            <div class="card" style="animation-delay: 0.1s;">
+                <div class="card-header">
+                    <span class="card-title">Temperature</span>
+                    <div class="card-icon">
+                        <i data-lucide="thermometer"></i>
+                    </div>
+                </div>
+                <div class="card-value">
+                    <span id="temp-value">24.5</span>
+                    <span class="unit">°C</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="temp-progress" style="width: 49%;"></div>
+                </div>
+            </div>
+
+            <!-- Humidity Card -->
+            <div class="card" style="animation-delay: 0.2s;">
+                <div class="card-header">
+                    <span class="card-title">Humidity</span>
+                    <div class="card-icon" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9;">
+                        <i data-lucide="droplets"></i>
+                    </div>
+                </div>
+                <div class="card-value">
+                    <span id="humidity-value">62</span>
+                    <span class="unit">%</span>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar" id="humidity-progress" style="width: 62%; background: #0ea5e9;"></div>
+                </div>
+            </div>
+
+            <!-- Touch Sensor Card -->
+            <div class="card" style="animation-delay: 0.3s;">
+                <div class="card-header">
+                    <span class="card-title">Touch Sensor</span>
+                    <div class="card-icon" style="background: rgba(244, 63, 94, 0.1); color: #f43f5e;">
+                        <i data-lucide="fingerprint"></i>
+                    </div>
+                </div>
+                <div class="touch-indicator" id="touch-indicator">
+                    <i data-lucide="zap" id="touch-icon"></i>
+                </div>
+                <p style="text-align: center; color: var(--text-muted); margin-top: 1rem;" id="touch-status">Not Touched</p>
+            </div>
+        </main>
+
+        <!-- Chart Section -->
+        <section class="chart-container">
+            <div class="card-header">
+                <span class="card-title">Live Sensor Data</span>
+                <i data-lucide="trending-up" style="color: var(--text-muted);"></i>
+            </div>
+            <canvas id="sensorChart" height="100"></canvas>
+        </section>
+    </div>
+
+    <script src="index.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
