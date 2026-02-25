@@ -2,7 +2,6 @@
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-
 #include "secrets.h"
 
 WiFiClientSecure espClient;

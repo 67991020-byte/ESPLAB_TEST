@@ -31,12 +31,19 @@
 
 ```text
 ESPLAB_TEST/
-├── ESP/
-│   ├── main.ino          # โค้ดหลัก Arduino
-│   └── secrets.h         # 🔒 ไฟล์เก็บรหัส WiFi/MQTT (ถูก ignored)
-├── index.html            # หน้าเว็บ Dashboard
-├── index.css             # สไตล์ Glassmorphism
-├── config.js             # 🔒 ไฟล์คอนฟิก MQTT ฝั่งเว็บ (ถูก ignored)
+├── backend/
+│   └── esp32/            # โค้ดสำหรับ ESP32
+│       ├── main.ino      # โค้ดหลัก Arduino
+│       └── secrets.h     # 🔒 ไฟล์เก็บรหัส WiFi/MQTT (ถูก ignored)
+├── frontend/             # โค้ดส่วนหน้าเว็บ
+│   ├── index.html        # หน้าเว็บ Dashboard หลัก
+│   ├── css/
+│   │   └── style.css     # สไตล์ Glassmorphism
+│   └── js/
+│       ├── main.js       # ลอจิกการทำงานและ MQTT
+│       └── config.js     # 🔒 ไฟล์คอนฟิก MQTT (ถูก ignored)
+├── data/                 # ข้อมูลและรูปแบบไฟล์
+│   └── mqtt_format.json  # รูปแบบข้อมูล JSON ที่ใช้
 ├── .gitignore            # ตั้งค่าไม่ให้อัปโหลดรหัสผ่านขึ้น Git
 └── README.md             # รายละเอียดโปรเจกต์
 ```
@@ -47,7 +54,7 @@ ESPLAB_TEST/
 
 ### 1. ฝั่ง Hardware (ESP32)
 1.  ติดตั้ง Library ใน Arduino IDE: `PubSubClient`, `Adafruit HTU21DF`
-2.  สร้างไฟล์ `ESP/secrets.h` และใส่ข้อมูลดังนี้:
+2.  ไปที่โฟลเดอร์ `backend/esp32/` สร้างไฟล์ `secrets.h` และใส่ข้อมูลดังนี้:
     ```cpp
     const char* ssid = "WIFI_NAME";
     const char* password = "WIFI_PASSWORD";
@@ -58,7 +65,7 @@ ESPLAB_TEST/
 3.  อัปโหลด `main.ino` ลงบอร์ด ESP32
 
 ### 2. ฝั่ง Web Dashboard
-1.  สร้างหรือแก้ไขไฟล์ `config.js` ในโฟลเดอร์หลัก:
+1.  ไปที่โฟลเดอร์ `frontend/js/` สร้างหรือแก้ไขไฟล์ `config.js`:
     ```javascript
     const MQTT_CONFIG = {
         hostname: "YOUR_HIVEMQ_URL",
@@ -69,9 +76,9 @@ ESPLAB_TEST/
         topic: "home/sensor/data"
     };
     ```
-2.  เปิดไฟล์ `index.html` ผ่าน Browser หรือใช้ Local Server:
+2.  เปิดไฟล์ `frontend/index.html` ผ่าน Browser หรือใช้ Local Server:
     ```bash
-    python -m http.server 8000
+    cd frontend && python -m http.server 8000
     ```
 
 ---

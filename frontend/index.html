@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Environment Dashboard</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Environment Monitor</h1>
+            <div class="status-indicator">
+                <div class="dot" id="connection-dot"></div>
+                <span id="connection-status">Connecting...</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Temperature</span>
+                    <span>🌡️</span>
+                </div>
+                <div class="card-value">
+                    <span id="current-temp">--</span>
+                    <span class="unit">°C</span>
+                </div>
+                <div class="progress-container">
+                    <div id="temp-progress" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Humidity</span>
+                    <span>💧</span>
+                </div>
+                <div class="card-value">
+                    <span id="current-hum">--</span>
+                    <span class="unit">%</span>
+                </div>
+                <div class="progress-container">
+                    <div id="hum-progress" class="progress-bar" style="width: 0%; background: #a855f7;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">LED Status</span>
+                    <span>💡</span>
+                </div>
+                <div class="card-value" id="led-text">OFF</div>
+                <div id="led-indicator" style="height: 8px; border-radius: 4px; margin-top: 1rem; background: #475569;">
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <canvas id="humChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Temp</th>
+                        <th>Hum</th>
+                        <th>LED</th>
+                    </tr>
+                </thead>
+                <tbody id="data-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
