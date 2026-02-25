@@ -4,57 +4,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32 Real-time Dashboard</title>
-    <link rel="stylesheet" href="index.css">
+    <title>ESP32 Environment Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
     <style>
-        .table-container {
-            margin-top: 2rem;
-            overflow-x: auto;
+        :root {
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #ffffff;
+            --text-muted: #94a3b8;
+            --success: #22c55e;
+            --accent: #f43f5e;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #0f172a;
+            color: var(--text);
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #64748b;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 1.5rem;
-            animation: fadeInUp 0.8s ease-out 0.6s both;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            color: var(--text);
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
         }
 
-        th {
-            text-align: left;
-            padding: 1rem;
+        .card-value {
+            font-size: 3rem;
+            font-weight: 700;
+        }
+
+        .unit {
+            font-size: 1.2rem;
             color: var(--text-muted);
-            border-bottom: 1px solid var(--glass-border);
         }
 
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--glass-border);
+        .progress-container {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 1rem;
         }
 
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 99px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .status-on {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-        }
-
-        .status-off {
-            background: rgba(244, 63, 94, 0.2);
-            color: var(--accent);
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            background: #6366f1;
+            transition: width 0.5s;
         }
 
         .charts-grid {
@@ -66,32 +106,52 @@
 
         .chart-card {
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             padding: 1.5rem;
-            animation: fadeInUp 0.8s ease-out both;
-            min-height: 350px;
-            /* เพิ่มความสูงขั้นต่ำให้กราฟ */
-            display: flex;
-            flex-direction: column;
+            height: 350px;
         }
 
-        .chart-wrapper {
-            flex-grow: 1;
-            position: relative;
-            height: 300px;
-            /* ล็อคความสูงของพื้นที่กราฟ */
+        .table-container {
+            margin-top: 2rem;
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid var(--glass-border);
+            overflow-x: auto;
         }
 
-        .chart-header-small {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
             color: var(--text-muted);
-            font-weight: 600;
-            font-size: 1rem;
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .status-on {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .status-off {
+            background: rgba(244, 63, 94, 0.2);
+            color: var(--accent);
         }
     </style>
 </head>
@@ -102,63 +162,38 @@
             <h1>Environment Monitor</h1>
             <div class="status-indicator">
                 <div class="dot" id="connection-dot"></div>
-                <span id="connection-status">Live System</span>
+                <span id="connection-status">Connecting...</span>
             </div>
         </header>
 
         <div class="grid">
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Temperature</span>
-                    <div class="card-icon">🌡️</div>
-                </div>
-                <div class="card-value">
-                    <span id="current-temp">--</span>
-                    <span class="unit">°C</span>
-                </div>
+                <div class="card-header"><span class="card-title">Temperature</span><span>🌡️</span></div>
+                <div class="card-value"><span id="current-temp">--</span><span class="unit">°C</span></div>
                 <div class="progress-container">
                     <div id="temp-progress" class="progress-bar" style="width: 0%"></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">Humidity</span>
-                    <div class="card-icon">💧</div>
-                </div>
-                <div class="card-value">
-                    <span id="current-hum">--</span>
-                    <span class="unit">%</span>
-                </div>
+                <div class="card-header"><span class="card-title">Humidity</span><span>💧</span></div>
+                <div class="card-value"><span id="current-hum">--</span><span class="unit">%</span></div>
                 <div class="progress-container">
-                    <div id="hum-progress" class="progress-bar" style="width: 0%"></div>
+                    <div id="hum-progress" class="progress-bar" style="width: 0%; background: #a855f7;"></div>
                 </div>
             </div>
 
             <div class="card">
-                <div class="card-header">
-                    <span class="card-title">LED Status</span>
-                    <div class="card-icon">💡</div>
-                </div>
-                <div class="touch-indicator" id="led-indicator">
-                    <span id="led-text" style="font-weight: 700;">OFF</span>
+                <div class="card-header"><span class="card-title">LED Status</span><span>💡</span></div>
+                <div class="card-value" id="led-text">OFF</div>
+                <div id="led-indicator" style="height: 8px; border-radius: 4px; margin-top: 1rem; background: #475569;">
                 </div>
             </div>
         </div>
 
         <div class="charts-grid">
-            <div class="chart-card">
-                <div class="chart-header-small">🌡️ Temperature History</div>
-                <div class="chart-wrapper">
-                    <canvas id="tempChart"></canvas>
-                </div>
-            </div>
-            <div class="chart-card" style="animation-delay: 0.2s">
-                <div class="chart-header-small">💧 Humidity History</div>
-                <div class="chart-wrapper">
-                    <canvas id="humChart"></canvas>
-                </div>
-            </div>
+            <div class="chart-card"><canvas id="tempChart"></canvas></div>
+            <div class="chart-card"><canvas id="humChart"></canvas></div>
         </div>
 
         <div class="table-container">
@@ -166,171 +201,132 @@
                 <thead>
                     <tr>
                         <th>Time</th>
-                        <th>Temp (°C)</th>
-                        <th>Hum (%)</th>
-                        <th>Heat Index</th>
-                        <th>Status</th>
+                        <th>Temp</th>
+                        <th>Hum</th>
+                        <th>LED</th>
                     </tr>
                 </thead>
-                <tbody id="data-table-body">
-                    <!-- Rows will be injected here -->
-                </tbody>
+                <tbody id="data-table-body"></tbody>
             </table>
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script>
-        // REPLACE THIS WITH YOUR GOOGLE APPS SCRIPT WEB APP URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxO_PqgKUPLAtNUTCB3PY8q02ZQottMQdk8UQn7c2zYnEbcDaVNwz0rOZIR0V4-xiQF9A/exec';
+        // --- 1. CONFIGURATION (โหลดจาก config.js) ---
+        // MQTT_CONFIG ถูกดึงมาจากไฟล์ config.js แล้ว
 
         let tempChart, humChart;
+        let historyData = [];
+        const MAX_HISTORY = 10;
+        let client;
 
-        function initCharts() {
-            const chartOptions = (label) => ({
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                    }
+        // --- 2. MQTT LOGIC ---
+        function initMQTT() {
+            client = new Paho.MQTT.Client(MQTT_CONFIG.hostname, MQTT_CONFIG.port, MQTT_CONFIG.path, MQTT_CONFIG.clientId);
+
+            client.onConnectionLost = (resp) => {
+                document.getElementById('connection-status').textContent = "Disconnected";
+                document.getElementById('connection-dot').style.backgroundColor = "#f43f5e";
+                setTimeout(initMQTT, 5000);
+            };
+
+            client.onMessageArrived = (message) => {
+                console.log("Data Arrived:", message.payloadString);
+                try {
+                    const data = JSON.parse(message.payloadString);
+                    data.time = new Date().toLocaleTimeString();
+
+                    historyData.push(data);
+                    if (historyData.length > MAX_HISTORY) historyData.shift();
+
+                    updateUI(data);
+                } catch (e) { console.error("JSON Parse Error"); }
+            };
+
+            const options = {
+                useSSL: true,
+                userName: MQTT_CONFIG.username,
+                password: MQTT_CONFIG.password,
+                onSuccess: () => {
+                    document.getElementById('connection-status').textContent = "Connected (MQTT)";
+                    document.getElementById('connection-dot').style.backgroundColor = "#22c55e";
+                    client.subscribe(MQTT_CONFIG.topic);
                 },
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        ticks: { color: '#94a3b8', font: { size: 10 } }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#94a3b8', font: { size: 10 } }
-                    }
+                onFailure: (err) => {
+                    document.getElementById('connection-status').textContent = "Fail: " + err.errorMessage;
                 }
-            });
-
-            const tempCtx = document.getElementById('tempChart').getContext('2d');
-            tempChart = new Chart(tempCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Temp (°C)',
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        data: [],
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 2,
-                        pointBackgroundColor: '#6366f1'
-                    }]
-                },
-                options: chartOptions('Temperature')
-            });
-
-            const humCtx = document.getElementById('humChart').getContext('2d');
-            humChart = new Chart(humCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Hum (%)',
-                        borderColor: '#a855f7',
-                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                        data: [],
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 2,
-                        pointBackgroundColor: '#a855f7'
-                    }]
-                },
-                options: chartOptions('Humidity')
-            });
+            };
+            client.connect(options);
         }
 
-        async function fetchData() {
-            try {
-                const response = await fetch(SCRIPT_URL);
-                const data = await response.json();
-
-                if (data && data.length > 0) {
-                    updateDashboard(data);
-                    updateTable(data);
-                    updateCharts(data);
-
-                    document.getElementById('connection-status').textContent = 'Live System';
-                    document.getElementById('connection-dot').style.backgroundColor = '#22c55e';
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                document.getElementById('connection-status').textContent = 'Connection Error';
-                document.getElementById('connection-dot').style.backgroundColor = '#f43f5e';
+        // --- 3. UI & CHART LOGIC ---
+        function updateUI(data) {
+            // Update Text
+            if (data.temp) {
+                document.getElementById('current-temp').textContent = data.temp;
+                document.getElementById('temp-progress').style.width = (data.temp * 2) + "%";
             }
-        }
-
-        function updateDashboard(data) {
-            const latest = data[data.length - 1];
-
-            // Update Temp
-            document.getElementById('current-temp').textContent = latest.temp;
-            document.getElementById('temp-progress').style.width = Math.min((latest.temp / 50) * 100, 100) + '%';
-
-            // Update Hum
-            document.getElementById('current-hum').textContent = latest.hum;
-            document.getElementById('hum-progress').style.width = latest.hum + '%';
+            if (data.hum) {
+                document.getElementById('current-hum').textContent = data.hum;
+                document.getElementById('hum-progress').style.width = data.hum + "%";
+            }
 
             // Update LED
-            const ledInd = document.getElementById('led-indicator');
+            const ledStatus = data.led || data.status;
             const ledText = document.getElementById('led-text');
-            if (latest.status === 'ON') {
-                ledInd.classList.add('active');
-                ledText.textContent = 'ON';
+            const ledBar = document.getElementById('led-indicator');
+            if (ledStatus === "ON") {
+                ledText.textContent = "ON"; ledText.style.color = "#22c55e";
+                ledBar.style.background = "#22c55e";
             } else {
-                ledInd.classList.remove('active');
-                ledText.textContent = 'OFF';
+                ledText.textContent = "OFF"; ledText.style.color = "#ffffff";
+                ledBar.style.background = "#475569";
             }
-        }
 
-        function updateTable(data) {
+            // Update Table
             const tbody = document.getElementById('data-table-body');
-            tbody.innerHTML = '';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${data.time}</td><td>${data.temp}°C</td><td>${data.hum}%</td><td><span class="status-badge ${ledStatus === 'ON' ? 'status-on' : 'status-off'}">${ledStatus}</span></td>`;
+            tbody.prepend(tr);
+            if (tbody.rows.length > MAX_HISTORY) tbody.deleteRow(MAX_HISTORY);
 
-            const displayData = [...data].reverse();
-            displayData.forEach(row => {
-                const date = new Date(row.time);
-                const timeStr = date.toLocaleTimeString();
+            // Update Charts
+            updateCharts();
+        }
 
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${timeStr}</td>
-                    <td>${row.temp}°C</td>
-                    <td>${row.hum}%</td>
-                    <td>${row.hi}</td>
-                    <td><span class="status-badge ${row.status === 'ON' ? 'status-on' : 'status-off'}">${row.status}</span></td>
-                `;
-                tbody.appendChild(tr);
+        function initCharts() {
+            const commonOptions = {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { grid: { color: 'rgba(255,255,255,0.1)' } }, x: { display: false } },
+                plugins: { legend: { display: false } }
+            };
+            tempChart = new Chart(document.getElementById('tempChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Temp', data: [], borderColor: '#6366f1', tension: 0.4 }] },
+                options: commonOptions
+            });
+            humChart = new Chart(document.getElementById('humChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Hum', data: [], borderColor: '#a855f7', tension: 0.4 }] },
+                options: commonOptions
             });
         }
 
-        function updateCharts(data) {
-            const labels = data.map(row => {
-                const d = new Date(row.time);
-                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            });
-
+        function updateCharts() {
+            const labels = historyData.map(d => d.time);
             tempChart.data.labels = labels;
-            tempChart.data.datasets[0].data = data.map(row => row.temp);
-            tempChart.update('none');
+            tempChart.data.datasets[0].data = historyData.map(d => d.temp);
+            tempChart.update();
 
             humChart.data.labels = labels;
-            humChart.data.datasets[0].data = data.map(row => row.hum);
-            humChart.update('none');
+            humChart.data.datasets[0].data = historyData.map(d => d.hum);
+            humChart.update();
         }
 
-        // Initialize
+        // Start
         initCharts();
-        fetchData();
-        setInterval(fetchData, 5000);
+        initMQTT();
     </script>
 </body>
 

@@ -1,52 +1,95 @@
-# 🌡️ ESP32 Real-Time Environment Dashboard
+# 🌡️ ESP32 Real-Time MQTT Environment Dashboard
 
-ระบบตรวจวัดอุณหภูมิและความชื้นแบบ Real-Time โดยใช้ ESP32 ส่งข้อมูลไปยัง Google Sheets และแสดงผลผ่าน Web Dashboard ที่สวยงาม พร้อมกราฟวิเคราะห์ข้อมูลแยกส่วน
+[![ESP32](https://img.shields.io/badge/Hardware-ESP32-blue.svg)](https://www.espressif.com/en/products/socs/esp32)
+[![MQTT](https://img.shields.io/badge/Protocol-MQTT-green.svg)](https://mqtt.org/)
+[![UI](https://img.shields.io/badge/UI-Glassmorphism-purple.svg)]()
 
-## ✨ คุณสมบัติ (Features)
-- **Real-Time Tracking**: ส่งข้อมูลจากเซนเซอร์ DHT22/DHT11 ไปยัง Google Sheets ทุกๆ 10 วินาที
-- **Premium Dashboard**: หน้าเว็บแสดงผลสไตล์ Modern Glassmorphism พร้อม Dark Mode
-- **Dual Dynamic Charts**: กราฟเส้นแยกกันระหว่าง Temperature และ Humidity เพื่อการวิเคราะห์ที่ชัดเจน
-- **Auto Data Cleanup**: ระบบอัตโนมัติรักษาข้อมูลใน Google Sheets ให้เหลือเพียง 10 รายการล่าสุดเสมอ (ป้องกัน Sheet อืด)
-- **Status Monitoring**: แสดงสถานะการเชื่อมต่อ (Live/Error) และสถานะ LED ของ ESP32 แบบวินาทีต่อวินาที
+ระบบตรวจวัดสภาพแวดล้อมอัจฉริยะ แสดงผลแบบ Real-Time ผ่าน **Web Dashboard** สไตล์ **Modern Glassmorphism** เชื่อมต่อข้อมูลอย่างไร้รอยต่อด้วยโปรโตคอล **MQTT (HiveMQ Cloud)**
 
-## 🛠️ อุปกรณ์ที่ใช้ (Hardware)
-- ESP32 Development Board
-- DHT22 หรือ DHT11 Sensor
-- Touch Sensor (Built-in ESP32) สำหรับควบคุมไฟ LED
+---
+
+## ✨ คุณสมบัติหลัก (Key Features)
+
+*   📡 **Real-Time Synchronize**: แสดงผลข้อมูลวินาทีต่อวินาทีผ่าน MQTT WebSockets
+*   📊 **Visual Analytics**: กราฟเส้นแบบไดนามิกจาก Chart.js แสดงแนวโน้มอุณหภูมิและความชื้น
+*   🎨 **Premium Dashboard**: ดีไซน์ล้ำสมัยด้วย Glassmorphism Effect รองรับ Responsive ทุกหน้าจอ
+*   💡 **Smart Control**: ควบคุมสถานะ LED ผ่าน Touch Sensor บน ESP32 พร้อมอัปเดตสถานะบนเว็บทันที
+*   �️ **Security Focused**: แยกการตั้งค่ารหัสผ่าน (Credentials) ออกจากโค้ดหลัก ปลอดภัยเมื่อขึ้น GitHub
+
+---
+
+## 🛠️ อุปกรณ์ที่ใช้ (Hardware Requirements)
+
+1.  **ESP32** Development Board
+2.  **SHT21 / HTU21D** (I2C) - สำหรับวัดอุณหภูมิและความชื้น
+3.  **LED** (ขา GPIO 15)
+4.  **Touch Pin** (ขา GPIO 4)
+
+---
 
 ## 📂 โครงสร้างโปรเจกต์ (Project Structure)
-- `/ESP`: โค้ด Arduino สำหรับ ESP32 (`main.ino` และการตั้งค่า WiFi ใน `sec.h`)
-- `index.html`: หน้าเว็บ Dashboard หลัก (HTML/JS/Chart.js)
-- `index.css`: ไฟล์สไตล์การตกแต่ง Dashboard
-- `google_script.gs`: โค้ด Google Apps Script สำหรับรับ/ส่งข้อมูลหลังบ้าน
+
+```text
+ESPLAB_TEST/
+├── ESP/
+│   ├── main.ino          # โค้ดหลัก Arduino
+│   └── secrets.h         # 🔒 ไฟล์เก็บรหัส WiFi/MQTT (ถูก ignored)
+├── index.html            # หน้าเว็บ Dashboard
+├── index.css             # สไตล์ Glassmorphism
+├── config.js             # 🔒 ไฟล์คอนฟิก MQTT ฝั่งเว็บ (ถูก ignored)
+├── .gitignore            # ตั้งค่าไม่ให้อัปโหลดรหัสผ่านขึ้น Git
+└── README.md             # รายละเอียดโปรเจกต์
+```
+
+---
 
 ## 🚀 วิธีการติดตั้ง (Setup Instructions)
 
-### 1. Google Sheets & Apps Script
-1. สร้าง Google Sheet ใหม่
-2. ไปที่ **Extensions** > **Apps Script**
-3. คัดลอกโค้ดจาก `google_script.gs` ไปวาง
-4. กด **Deploy** > **New Deployment**
-   - Type: **Web App**
-   - Execute As: **Me**
-   - Who has access: **Anyone**
-5. คัดลอก **Web App URL (Key)** ที่ได้
+### 1. ฝั่ง Hardware (ESP32)
+1.  ติดตั้ง Library ใน Arduino IDE: `PubSubClient`, `Adafruit HTU21DF`
+2.  สร้างไฟล์ `ESP/secrets.h` และใส่ข้อมูลดังนี้:
+    ```cpp
+    const char* ssid = "WIFI_NAME";
+    const char* password = "WIFI_PASSWORD";
+    const char* mqtt_server = "YOUR_HIVEMQ_URL";
+    const char* mqtt_user = "USER";
+    const char* mqtt_pass = "PASS";
+    ```
+3.  อัปโหลด `main.ino` ลงบอร์ด ESP32
 
-### 2. ESP32 Configuration
-1. เปิดไฟล์ `ESP/sec.h`
-2. ใส่ชื่อ WiFi และ Password ของคุณ
-3. ใส่ Web App URL Key ที่ได้จากขั้นตอนที่แล้วในตัวแปร `sheet_key`
-4. อัปโหลดโค้ดลง ESP32
+### 2. ฝั่ง Web Dashboard
+1.  สร้างหรือแก้ไขไฟล์ `config.js` ในโฟลเดอร์หลัก:
+    ```javascript
+    const MQTT_CONFIG = {
+        hostname: "YOUR_HIVEMQ_URL",
+        port: 8884,
+        path: "/mqtt",
+        username: "USER",
+        password: "PASS",
+        topic: "home/sensor/data"
+    };
+    ```
+2.  เปิดไฟล์ `index.html` ผ่าน Browser หรือใช้ Local Server:
+    ```bash
+    python -m http.server 8000
+    ```
 
-### 3. Web Dashboard
-1. เปิดไฟล์ `index.html` ด้วยโปรแกรมแก้ไขข้อความ
-2. ตรวจสอบบรรทัดที่ 170 ให้ `const SCRIPT_URL` ตรงกับ Web App URL ของคุณ
-3. เปิดไฟล์ `index.html` ผ่าน Browser เพื่อเริ่มใช้งาน
+---
 
-## 📊 การแสดงผล
-- **Cards**: แสดงค่าปัจจุบันของ Temperature, Humidity และสถานะ LED
-- **Charts**: กราฟประวัติข้อมูล 10 รายการล่าสุด
-- **Table**: ตารางสรุปข้อมูลพร้อมเวลาที่บันทึกจริง
+## 📊 การทำงานของระบบ (System Workflow)
+
+1.  **Sensor Reading**: ESP32 อ่านค่าจาก SHT21 และตรวจสอบค่าสัมผัส (Touch)
+2.  **Data Publishing**: ส่งข้อมูลรูปแบบ JSON ไปยัง HiveMQ Cloud ผ่านพอร์ต 8883 (SSL)
+3.  **Real-Time Subscribing**: Web Dashboard รับข้อมูลผ่าน WebSockets (พอร์ต 8884)
+4.  **Instant UI Update**: JavaScript อัปเดตข้อมูลบน Card, กราฟ และตารางประวัติทันที
+
+---
+
+## 🛡️ ข้อมูลความปลอดภัย (Security Note)
+
+โปรเจกต์นี้ใช้ระบบแยกไฟล์ตั้งค่า เพื่อป้องกันรหัสผ่านหลุดไปยังที่สาธารณะ:
+*   `secrets.h` และ `config.js` จะ **ไม่ถูกอัปโหลด** ขึ้น GitHub เพราะถูกระบุไว้ใน `.gitignore`
+*   กรุณาสำรองไฟล์เหล่านี้ไว้ในเครื่องของคุณเสมอ
 
 ---
 *Created for ESPLAB_TEST Project*

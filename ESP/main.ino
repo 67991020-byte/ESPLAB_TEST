@@ -1,103 +1,107 @@
-#include "Adafruit_HTU21DF.h"
-#include "sec.h"
-#include <HTTPClient.h>
+#include <Adafruit_HTU21DF.h>
+#include <PubSubClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 
-String GOOGLE_SCRIPT_ID = sheet_key;
+#include "secrets.h"
 
-#define DHTPIN                                                                 \
-  21 // หมายเหตุ: SHT21 ใช้ I2C พิน 21(SDA) และ 22(SCL) เป็นค่าเริ่มต้นของ ESP32
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 Adafruit_HTU21DF sht21 = Adafruit_HTU21DF();
 
-int touchPin = 4;
-int ledPin = 15;
-int touchThreshold = 1000;
+// --- Hardware Pins & Timing ---
+const int touchPin = 4;
+const int ledPin = 15;
+const int touchThreshold = 40; // ปรับให้เหมาะกับบอร์ดจริง (ต่ำกว่า 40 คือสัมผัส)
+
 bool ledState = false;
 unsigned long lastSendTime = 0;
-const unsigned long sendInterval = 10000;
+const unsigned long sendInterval = 1500; // ส่งทุกๆ 1.5 วินาที
 
 void setup() {
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
 
-  Serial.println("Connecting to WiFi");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(SECRET_SSID, SECRET_PASS);
+  // เชื่อมต่อ WiFi
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nConnected!");
+  Serial.println("\nWiFi Connected!");
 
   if (!sht21.begin()) {
     Serial.println("Couldn't find SHT21 sensor!");
     while (1)
       ;
   }
-} // <--- จุดนี้คือที่เคยหายไปครับ
 
-void loop() {
-  // ส่วนของ Touch Sensor ควบคุม LED
-  int touchValue = touchRead(touchPin);
-  if (touchValue < touchThreshold) {
-    ledState = !ledState;
-    digitalWrite(ledPin, ledState ? HIGH : LOW);
-    Serial.printf("LED Toggled: %s (Touch Value: %d)\n",
-                  ledState ? "ON" : "OFF", touchValue);
-    delay(500); // Debounce
-  }
+  // ตั้งค่า SSL สำหรับ HiveMQ Cloud
+  espClient.setInsecure();
+  client.setServer(mqtt_server, mqtt_port);
+}
 
-  // ส่วนของการส่งข้อมูลไป Google Sheets ตามช่วงเวลา
-  if (millis() - lastSendTime >= sendInterval) {
-    lastSendTime = millis();
-    float temp = sht21.readTemperature();
-    float rel_hum = sht21.readHumidity();
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    String clientId = "ESP32-Client-" + String(random(0xffff), HEX);
 
-    float hi = 0; // Heat Index (ถ้าต้องการคำนวณเพิ่ม)
-    String ledStatus = ledState ? "ON" : "OFF";
-
-    Serial.print("Temp: ");
-    Serial.print(temp);
-    Serial.print(" C");
-    Serial.print("\t\t");
-    Serial.print("Humidity: ");
-    Serial.print(rel_hum);
-    Serial.println(" %");
-    Serial.print("touchThreshold");
-    Serial.print(touchValue);
-
-    // เรียกฟังก์ชันส่งข้อมูล
-    sendDataToGoogle(temp, rel_hum, hi, ledStatus);
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_pass)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      delay(5000);
+    }
   }
 }
 
-void sendDataToGoogle(float temp, float hum, float hi, String led) {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    // สร้าง URL พร้อม Parameter
-    String url =
-        "https://script.google.com/macros/s/" + GOOGLE_SCRIPT_ID + "/exec";
-    url += "?temp=" + String(temp);
-    url += "&hum=" + String(hum);
-    url += "&hi=" + String(temp - 0.5);
-    url += "&led=" + led;
+void publishData() {
+  float temp = sht21.readTemperature();
+  float hum = sht21.readHumidity();
+  String ledStatus = ledState ? "ON" : "OFF";
 
-    Serial.println(">>> Sending to Google Sheets...");
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("Failed to read from SHT21 sensor!");
+    return;
+  }
 
-    http.begin(url);
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    http.setTimeout(2500);
+  // สร้าง JSON Payload
+  String payload = "{";
+  payload += "\"temp\":" + String(temp, 1);
+  payload += ",\"hum\":" + String(hum, 1);
+  payload += ",\"led\":\"" + ledStatus + "\"";
+  payload += "}";
 
-    int httpCode = http.GET();
-    if (httpCode > 0) {
-      Serial.printf("Success! HTTP Code: %d\n", httpCode);
-    } else {
-      Serial.printf("Error: %s (Code: %d)\n",
-                    http.errorToString(httpCode).c_str(), httpCode);
-    }
-    http.end();
-  } else {
-    Serial.println("WiFi not connected! Cannot send data.");
+  Serial.print("Publishing: ");
+  Serial.println(payload);
+  client.publish(mqtt_topic, payload.c_str());
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+
+  // ตรวจสอบ Touch Sensor (Capacitive Touch)
+  int touchValue = touchRead(touchPin);
+  if (touchValue < touchThreshold && touchValue > 0) {
+    ledState = !ledState;
+    digitalWrite(ledPin, ledState ? HIGH : LOW);
+    Serial.printf("Touch Triggered! Value: %d | LED: %s\n", touchValue,
+                  ledState ? "ON" : "OFF");
+
+    publishData(); // ส่งข้อมูลทันทีเมื่อมีการสัมผัส
+    delay(400);    // ป้องกันการสัมผัสซ้ำ (Debounce)
+  }
+
+  // ส่งข้อมูลอัตโนมัติตามช่วงเวลา (1.5 วินาที)
+  if (millis() - lastSendTime >= sendInterval) {
+    lastSendTime = millis();
+    publishData();
   }
 }
