@@ -1,4 +1,4 @@
-ESP/secrets.h
-config.js
+backend/ESP/secrets.h
+frontend/config.js
 node_modules/
 .DS_Store
